@@ -36,7 +36,7 @@
     self.textField.returnKeyType = UIReturnKeyDone;
     self.textField.autocapitalizationType = UITextAutocapitalizationTypeNone;
     self.textField.autocorrectionType = UITextAutocorrectionTypeNo;
-    self.textField.placeholder = NSLocalizedString(@"Website URL", @"Placeholder text for web browser URL field");
+    self.textField.placeholder = NSLocalizedString(@"Website URL or Search", @"Placeholder text for web browser URL field");
     self.textField.backgroundColor = [UIColor colorWithWhite:220/255.0f alpha:1];
     self.textField.delegate = self;
     
@@ -53,16 +53,14 @@
     [self.reloadButton setEnabled:NO];
     
     [self.backButton setTitle:NSLocalizedString(@"Back", @"Back command") forState:UIControlStateNormal];
-    [self.backButton addTarget:self.webView action:@selector(goBack) forControlEvents:UIControlEventTouchUpInside];
     
     [self.forwardButton setTitle:NSLocalizedString(@"Forward", @"Forward command") forState:UIControlStateNormal];
-    [self.forwardButton addTarget:self.webView action:@selector(goForward) forControlEvents:UIControlEventTouchUpInside];
     
     [self.stopButton setTitle:NSLocalizedString(@"Stop", @"Stop command") forState:UIControlStateNormal];
-    [self.stopButton addTarget:self.webView action:@selector(stopLoading) forControlEvents:UIControlEventTouchUpInside];
     
     [self.reloadButton setTitle:NSLocalizedString(@"Refresh", @"Reload command") forState:UIControlStateNormal];
-    [self.reloadButton addTarget:self.webView action:@selector(reload) forControlEvents:UIControlEventTouchUpInside];
+    
+     [self addButtonTargets];
 
     for (UIView *viewToAdd in @[self.webView, self.textField, self.backButton, self.forwardButton, self.stopButton, self.reloadButton]) {
         [mainView addSubview:viewToAdd];
@@ -72,6 +70,33 @@
     [mainView addSubview:self.textField];
     self.view = mainView;
 }
+
+- (void) resetWebView {
+    [self.webView removeFromSuperview];
+    
+    WKWebView *newWebView = [[WKWebView alloc] init];
+    newWebView.navigationDelegate = self;
+    [self.view addSubview:newWebView];
+    
+    self.webView = newWebView;
+    
+    [self addButtonTargets];
+    
+    self.textField.text = nil;
+    [self updateButtonsAndTitle];
+}
+
+- (void) addButtonTargets {
+    for (UIButton *button in @[self.backButton, self.forwardButton, self.stopButton, self.reloadButton]) {
+        [button removeTarget:nil action:NULL forControlEvents:UIControlEventTouchUpInside];
+    }
+    
+    [self.backButton addTarget:self.webView action:@selector(goBack) forControlEvents:UIControlEventTouchUpInside];
+    [self.forwardButton addTarget:self.webView action:@selector(goForward) forControlEvents:UIControlEventTouchUpInside];
+    [self.stopButton addTarget:self.webView action:@selector(stopLoading) forControlEvents:UIControlEventTouchUpInside];
+    [self.reloadButton addTarget:self.webView action:@selector(reload) forControlEvents:UIControlEventTouchUpInside];
+}
+
 
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -113,6 +138,9 @@
     if (!URL.scheme) {
         // The user didn't type http: or https:
         URL = [NSURL URLWithString:[NSString stringWithFormat:@"http://%@", URLString]];
+    } else if (!URL.host) {
+        NSString *googleSearch = [URLString stringByReplacingOccurrencesOfString:@" " withString:@"+"];
+        URL = [NSURL URLWithString:[NSString stringWithFormat:@"http://www.google.com/search?q=%@", googleSearch]];
     }
     
     if (URL) {
@@ -174,7 +202,7 @@
     self.backButton.enabled = [self.webView canGoBack];
     self.forwardButton.enabled = [self.webView canGoForward];
     self.stopButton.enabled = self.webView.isLoading;
-    self.reloadButton.enabled = !self.webView.isLoading;
+    self.reloadButton.enabled = !self.webView.isLoading && self.webView.URL;
 }
 
 
